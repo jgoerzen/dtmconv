@@ -318,8 +318,14 @@ getDB tzoffset startuid doc =
     -- Each row of the input
     event_attrs :: LabelFilter String
     event_attrs = versanumbered startuid (startuid - 1)
-                      (tag "Event" `o` children)
+                      (filter corruptfilter . tag "Event" `o` children)
     
+    -- Filter out corrupt rows.
+    corruptfilter :: Content -> Bool
+    corruptfilter inp = if strof "ADAY" inp `elem` ["1", "0"] 
+                           then True
+                           else False
+
     -- Each row of the output
     row_event :: String -> CFilter
     row_event uid inp = mkElemAttr "event" rowattrs [] inp

@@ -84,7 +84,7 @@ main = do time <- epochTime
                      ", uid " ++ (show uid) ++ " to " ++ (show lastuid)
           let (tododata, lastuidtodo) = getTodos (lastuid - 1) doc
           writeFile "todolist.xml" (xml2str tododata)
-          putStrLn $ "Wrote todolist.xmlm uid " ++ (show (lastuid - 1)) ++
+          putStrLn $ "Wrote todolist.xml, uid " ++ (show (lastuid - 1)) ++
                      " to " ++ (show lastuidtodo)
 
 -- Finds the literal children of the named tag, and returns it/them
@@ -116,15 +116,20 @@ versanumbered start next f = zip (map show [start,next..]) . f
 
 getTodos :: Integer -> Content -> ([Content], Integer)
 getTodos startuid doc =
-    (tasks `o` tag "Tasks" `o` children `o` tag "DTM" $ doc, count)
+    (tasks `o` inputTop $ doc,
+           startuid - count)
     where
+    -- The top-level of the input
+    inputTop :: CFilter
+    inputTop = tag "Tasks" `o` children `o` tag "DTM"
+
     -- The top-level of the output
     tasks :: CFilter
     tasks = mkElem "Tasks"
             [row_task `oo` task_attrs]
             
-    count = genericLength $ children `o` tag "Tasks" `o` children `o` 
-                  tag "DTM" $ doc
+    count = genericLength $ children `o` inputTop $ doc
+
     task_attrs :: LabelFilter String
     task_attrs = versanumbered startuid (startuid - 1)
                              (tag "Task" `o` children)

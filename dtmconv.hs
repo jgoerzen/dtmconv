@@ -331,7 +331,29 @@ getDB tzoffset startuid doc =
     row_event uid inp = mkElemAttr "event" rowattrs [] inp
         where
         rowattrs = (mapattrs eventmap inp) ++ customattrs
-                   ++ times inp
+                   ++ times inp ++ alarm inp ++ repeat inp
+                      
+        alarm :: Content -> [(String, CFilter)]
+        alarm inp = case strof "ARON" inp of
+                      "1" -> -- alarm on
+                             [("alarm", literal $ show $ (read ((strof "ARMN" inp))::Int) * 60),
+                              ("sound", literal "loud")]
+                      _ -> []   -- alarm off
+
+        repeat :: Content -> [(String, CFilter)]
+        repeat inp = 
+            case strof "RTYPE" inp of
+              "255" -> []         -- No repeat
+              "0" -> [("rtype", literal "Daily")]
+              "1" -> [("rtype", literal "Weekly")]
+              "2" -> [("rtype", literal "MonthlyDay")]
+              "3" -> [("rtype", literal "MonthlyDate")]
+              "4" -> [("rtype", literal "Yearly")]
+              _ -> []           -- unknown
+            ++ case tag2ct "REDT" inp >>= ct2epoch of
+                     Nothing -> []
+                     Just x -> [("enddt", literal (show x))]
+
         times :: Content -> [(String, CFilter)]
         times inp = case strof "ADAY" inp of
                   "1" ->  -- All-day item
@@ -371,5 +393,9 @@ getDB tzoffset startuid doc =
             [("uid", literal uid)]
         eventmap = [("DSRP", "description"),
                     ("PLCE", "location"),
-                    ("MEM1", "note")
+                    ("MEM1", "note"),
+                    ("RFRQ", "rfreq"),
+                    ("RPOS", "rposition"),
+                    ("RDYS", "rweekdays"),
+                    ("REND", "rhasenddate")
                    ]

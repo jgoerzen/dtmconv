@@ -28,6 +28,7 @@ import System.Posix.Time(epochTime)
 import System.Time
 import Text.Regex
 import Data.List
+import System.IO.Unsafe
 
 -- Get an attribute value from an element.
 
@@ -78,9 +79,11 @@ tag2ct :: String -> Content -> Maybe CalendarTime
 tag2ct x y = date2ct $ strof x y
 
 -- Convert CT to epoch time.
-ct2epoch :: CalendarTime -> Integer
-ct2epoch ct = case toClockTime ct of
-                 TOD x _ -> x
+ct2epoch :: CalendarTime -> Maybe Integer
+ct2epoch ct = 
+    if ctYear ct < 1971 || ctHour ct > 24 then Nothing
+       else case toClockTime ct of
+                 TOD x _ -> Just x
 
 -- Convert a date to a generic calendar time object.
 -- Direct conversion.  Must adjust tz in calendar time object if necessary.
@@ -322,11 +325,42 @@ getDB tzoffset startuid doc =
     row_event uid inp = mkElemAttr "event" rowattrs [] inp
         where
         rowattrs = (mapattrs eventmap inp) ++ customattrs
-                   ++ times
-        times = case strof "ADAY" inp of
+                   ++ times inp
+        times :: Content -> [(String, CFilter)]
+        times inp = case strof "ADAY" inp of
                   "1" ->  -- All-day item
-                      [("type", "AllDay"),
-                       
+                      [("type", literal "AllDay")] ++ 
+                        case (do c <- tag2cttz "ALSD" inp
+                                 ct <- ct2epoch $
+                                        c {ctHour = 0, ctMin = 0, ctSec = 0}
+                                 return $ show ct
+                                ) of
+                          Nothing -> []
+                          Just x -> [("start", literal (show x))]
+                          ++
+                        case (do c <- tag2cttz "ALED" inp
+                                 ct <- ct2epoch $ 
+                                        c {ctHour = 23, ctMin = 59, ctSec = 0}
+                                 return $ show ct
+                             ) of
+                          Nothing -> []
+                          Just x -> [("end", literal (show x))]
+                  _ -> -- Non-all-day item
+                       case (do c <- tag2ct "TIM1" inp
+                                ct <- ct2epoch c
+                                return $ show ct
+                            ) of
+                         Nothing -> []
+                         Just x -> [("start", literal x)]
+                       ++
+                       case (do c <- tag2ct "TIM2" inp
+                                ct <- ct2epoch c
+                                return $ show ct
+                            ) of
+                         Nothing -> []
+                         Just x -> [("end", literal x)]
+
+        customattrs :: [(String, CFilter)]
         customattrs = 
             [("uid", literal uid)]
         eventmap = [("DSRP", "description"),

@@ -53,12 +53,10 @@ xml2str =
 main = do time <- epochTime
           let uid = (fromIntegral time) * (-1)
           doc <- parse
-          let (addressdata, nextrid, nextuid) = getAddresses uid doc
+          let (addressdata, lastrid, lastuid) = getAddresses uid doc
           writeFile "addressbook.xml" (xml2str addressdata)
-          print $ "nextrid: "
-          print nextrid
-          print "nextuid: "
-          print nextuid
+          putStrLn $ "Processed addressbook, rid 1 to " ++ (show lastrid) ++
+                     ", uid " ++ (show uid) ++ " to " ++ (show lastuid)
 
 tagof x = keep /> tag x /> txt
 strof x y = verbatim $ tagof x $ y
@@ -75,11 +73,11 @@ mapattrs (x:xs) doc =
 versanumbered :: (Enum a, Show a) => a -> a -> CFilter -> LabelFilter String
 versanumbered start next f = zip (map show [start,next..]) . f
 
---getAddresses :: Integer -> Content -> ([Content], String, String)
+getAddresses :: Integer -> Content -> ([Content], Integer, Integer)
 getAddresses startuid doc = 
     (concatMap contacts contactselem, 
-     concatMap lastrid contactselem, 
-     concatMap lastuid contactselem)
+     (read (concatMap lastrid contactselem))::Integer, 
+     (read (concatMap lastuid contactselem))::Integer)
     where 
         contactselem = (tag "Contacts" `o` children `o` tag "DTM") doc
         rowdata = children `with` tag "Contact"

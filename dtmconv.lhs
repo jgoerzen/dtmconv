@@ -2,7 +2,9 @@
 
 {- 
 TODO: categories
-CHECK: can rid be eliminated? (palm does it, so it doesn't seem to harm anything)
+
+CHECK: can rid be eliminated? (palm uses it, so it doesn't seem to harm anything)
+
 -}
 {- Copyright (c) 2005 John Goerzen
 
@@ -44,7 +46,7 @@ parse =
     where getContent (Document _ _ e) = CElem e
        
 xml2str =
-    show . ppContent
+    render . ppContent
     where 
         ppContent [CElem e] = element e
         ppContent []  = error "produced no output"
@@ -55,7 +57,7 @@ main = do time <- epochTime
           doc <- parse
           let (addressdata, lastrid, lastuid) = getAddresses uid doc
           writeFile "addressbook.xml" (xml2str addressdata)
-          putStrLn $ "Processed addressbook, rid 1 to " ++ (show lastrid) ++
+          putStrLn $ "Wrote addressbook.xml, rid 1 to " ++ (show lastrid) ++
                      ", uid " ++ (show uid) ++ " to " ++ (show lastuid)
 
 tagof x = keep /> tag x /> txt

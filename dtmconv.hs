@@ -2,7 +2,7 @@
 
 {- 
 TODO: categories
-CHECK: can rid be eliminated?
+CHECK: can rid be eliminated? (palm does it, so it doesn't seem to harm anything)
 -}
 {- Copyright (c) 2005 John Goerzen
 

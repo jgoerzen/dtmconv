@@ -64,12 +64,15 @@ mapattrs (x:xs) doc =
             then ((snd x), tag) : mapattrs xs doc
             else mapattrs xs doc
 
+versanumbered :: (Enum a, Show a) => a -> a -> CFilter -> LabelFilter String
+versanumbered start next f = zip (map show [start,next..]) . f
+
 getAddresses startuid doc = 
     concatMap contacts contactselem
     where 
         contactselem = (tag "Contacts" `o` children `o` tag "DTM") doc
         rowdata = children `with` tag "Contact"
-        rows = numbered rowdata
+        rows = numbered `x` versanumbered startuid (startuid - 1) $ rowdata
         contacts = mkElem "AddressBook" 
                      [mkElem "RIDMax" [literal (ridmax (concatMap children contactselem))]
                      ,mkElem "Groups" []
@@ -78,19 +81,19 @@ getAddresses startuid doc =
         ridmax :: [Content] -> String
         ridmax c = show . (+) 1 . maximum . map ((read::String->Integer) . showattv . attrofelem "card") $ c
                    
-        rowfunc rid x =
+        rowfunc (rid, uid) x =
             mkElemAttr "Contact"
                            (
                        [("FileAs", \x -> if (strof "FULL" x) `elem` ["", ",", ", "]
                                       then tagof "CPNY" x
                                       else tagof "FULL" x)
-                       ,("rid", literal (show rid))
+                       ,("rid", literal rid)
+                       ,("uid", literal uid)
                        ,("rinfo", literal "1")
                        ] ++ mapattrs addrmap x)
                        [] x
 
-        addrmap = [("SYID", "uid"),
-                   ("TITL", "Title"),
+        addrmap = [("TITL", "Title"),
                    ("FNME", "FirstName"),
                    ("MNME", "MiddleName"),
                    ("LNME", "LastName"),

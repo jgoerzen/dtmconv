@@ -118,8 +118,18 @@ getTodos startuid doc =
     row_task inp = mkElemAttr "Task" rowattrs [] inp
                    where
                    rowattrs = mapattrs todomap inp
+                              ++ 
+                              [
+                               ("Completed",
+                                 if (strof "MARK" inp) == "0"
+                                    then literal "1"
+                                    else literal "0"
+                               )
+                              ]
                    todomap = [("TITL", "Summary")
-                              ,("MEM1", "Description")]
+                             ,("MEM1", "Description")
+                             ,("PRTY", "Priority")
+                             ]
 
 
 ----------------------------------------------------------------------

@@ -26,6 +26,7 @@ CHECK: can rid be eliminated? (palm uses it, so it doesn't seem to harm anything
 import Text.XML.HaXml
 import System.Posix.Time(epochTime)
 import Text.Regex
+import Data.List
 
 -- Get an attribute value from an element.
 
@@ -115,14 +116,19 @@ versanumbered start next f = zip (map show [start,next..]) . f
 
 getTodos :: Integer -> Content -> ([Content], Integer)
 getTodos startuid doc =
-    (tasks `o` tag "Tasks" `o` children `o` tag "DTM" $ doc, 0)
+    (tasks `o` tag "Tasks" `o` children `o` tag "DTM" $ doc, count)
     where
     -- The top-level of the output
     tasks :: CFilter
     tasks = mkElem "Tasks"
-            [row_task `oo` versanumbered startuid (startuid - 1)
-                             (tag "Task" `o` children)]
+            [row_task `oo` task_attrs]
             
+    count = genericLength $ children `o` tag "Tasks" `o` children `o` 
+                  tag "DTM" $ doc
+    task_attrs :: LabelFilter String
+    task_attrs = versanumbered startuid (startuid - 1)
+                             (tag "Task" `o` children)
+
     -- Each row of the output
     row_task :: String -> CFilter
     row_task uid inp = mkElemAttr "Task" rowattrs [] inp

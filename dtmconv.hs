@@ -340,19 +340,27 @@ getDB tzoffset startuid doc =
                               ("sound", literal "loud")]
                       _ -> []   -- alarm off
 
+        rfrq :: Content -> [(String, CFilter)]
+        rfrq inp = [("rfreq", tagof "RFRQ"),
+                    ("rposition", tagof "RPOS"),
+                    ("rweekdays", tagof "RDYS")]
+
         repeat :: Content -> [(String, CFilter)]
         repeat inp = 
-            case strof "RTYPE" inp of
+            case strof "RTYP" inp of
               "255" -> []         -- No repeat
-              "0" -> [("rtype", literal "Daily")]
-              "1" -> [("rtype", literal "Weekly")]
-              "2" -> [("rtype", literal "MonthlyDay")]
-              "3" -> [("rtype", literal "MonthlyDate")]
-              "4" -> [("rtype", literal "Yearly")]
+              "0" -> [("rtype", literal "Daily")] ++ rfrq inp
+              "1" -> [("rtype", literal "Weekly")] ++ rfrq inp
+              "2" -> [("rtype", literal "MonthlyDay")] ++ rfrq inp
+              "3" -> [("rtype", literal "MonthlyDate")] ++ rfrq inp
+              "4" -> [("rtype", literal "Yearly")] ++ rfrq inp
               _ -> []           -- unknown
-            ++ case tag2ct "REDT" inp >>= ct2epoch of
-                     Nothing -> []
-                     Just x -> [("enddt", literal (show x))]
+            ++ case strof "REND" inp of
+                 "1" -> [("rhasenddate", literal "1")] ++
+                        case tag2ct "REDT" inp >>= ct2epoch of
+                          Nothing -> []
+                          Just x -> [("enddt", literal (show x))]
+                 _ -> []
 
         times :: Content -> [(String, CFilter)]
         times inp = case strof "ADAY" inp of
@@ -393,9 +401,5 @@ getDB tzoffset startuid doc =
             [("uid", literal uid)]
         eventmap = [("DSRP", "description"),
                     ("PLCE", "location"),
-                    ("MEM1", "note"),
-                    ("RFRQ", "rfreq"),
-                    ("RPOS", "rposition"),
-                    ("RDYS", "rweekdays"),
-                    ("REND", "rhasenddate")
+                    ("MEM1", "note")
                    ]

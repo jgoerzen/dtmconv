@@ -64,30 +64,21 @@ mapattrs (x:xs) doc =
             then ((snd x), tag) : mapattrs xs doc
             else mapattrs xs doc
 
-procrows :: Integer -> Integer -> (Integer -> Integer -> CFilter) -> [Content] -> (Integer, Integer, [Content])
-procrows = worker []
-    where
-    worker :: [[Content]] -> Integer -> Integer -> (Integer -> Integer -> CFilter) -> [Content] -> (Integer, Integer, [Content])
-    worker accum rid uid _ [] = (rid, uid, concat accum)
-    worker accum rid uid f (x:xs) =
-        worker ((f rid uid x) : accum) (rid + 1) (uid - 1) f xs
-
 getAddresses startuid doc = 
     concatMap contacts contactselem
     where 
         contactselem = (tag "Contacts" `o` children `o` tag "DTM") doc
-        (nextuid, newxrid, rowelems) =
-            procrows 1 startuid rowfunc (concatMap rowdata contactselem)
         rowdata = children `with` tag "Contact"
+        rows = numbered rowdata
         contacts = mkElem "AddressBook" 
                      [mkElem "RIDMax" [literal (ridmax (concatMap children contactselem))]
                      ,mkElem "Groups" []
-                     ,mkElem "Contacts" [rowelems]
+                     ,mkElem "Contacts" [rowfunc `oo` rows]
                      ]
         ridmax :: [Content] -> String
         ridmax c = show . (+) 1 . maximum . map ((read::String->Integer) . showattv . attrofelem "card") $ c
                    
-        rowfunc rid uid x =
+        rowfunc rid x =
             mkElemAttr "Contact"
                            (
                        [("FileAs", \x -> if (strof "FULL" x) `elem` ["", ",", ", "]

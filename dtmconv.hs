@@ -1,12 +1,11 @@
 -- arch-tag: DTM conversion program
 
-{- 
-TODO: categories
+{-
 
+TODO: categories
 CHECK: can rid be eliminated? (palm uses it, so it doesn't seem to harm anything)
 
--}
-{- Copyright (c) 2005 John Goerzen
+   Copyright (c) 2005 John Goerzen
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,10 +20,13 @@ CHECK: can rid be eliminated? (palm uses it, so it doesn't seem to harm anything
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
+
 -}
 
 import Text.XML.HaXml
 import System.Posix.Time(epochTime)
+
+-- Get an attribute value from an element.
 
 attrofelem :: String -> Content -> AttValue
 attrofelem attrname (CElem (Elem name al _)) =
@@ -34,17 +36,25 @@ attrofelem attrname (CElem (Elem name al _)) =
 attrofelem _ _ =
     error "attrofelem: called on something other than a CElem"
 
+--Render an attribute value as a string.
+
 showattv :: AttValue -> String
 showattv (AttValue v) = worker v
                         where worker [] = []
                               worker (Left x:xs) = x ++ worker xs
                               worker (Right x:xs) = worker xs
 
+-- Parse stdin.
+
+parse :: IO Content
 parse =
     do c <- getContents
        return $ getContent $ xmlParse "(stdin)" c
     where getContent (Document _ _ e) = CElem e
        
+-- Render a Cnotent.
+
+xml2str :: [Content] -> String
 xml2str =
     render . ppContent
     where 
@@ -52,7 +62,10 @@ xml2str =
         ppContent []  = error "produced no output"
         ppContent _   = error "produced more than one output"
 
+-- Program entry point
+main :: IO ()
 main = do time <- epochTime
+          -- UIDs start from a negative timestamp and decrease from there
           let uid = (fromIntegral time) * (-1)
           doc <- parse
           let (addressdata, lastrid, lastuid) = getAddresses uid doc
@@ -60,21 +73,34 @@ main = do time <- epochTime
           putStrLn $ "Wrote addressbook.xml, rid 1 to " ++ (show lastrid) ++
                      ", uid " ++ (show uid) ++ " to " ++ (show lastuid)
 
+-- Finds the literal children of the named tag, and returns it/them
+tagof :: String -> CFilter
 tagof x = keep /> tag x /> txt
+
+-- Retruns the literal string that tagof would fine
+strof :: String -> Content -> String
 strof x y = verbatim $ tagof x $ y
 
+{- Takes a list of (OldName, NewName) pairs.  Returns a list of (NewName,
+CFilter) pairs that will yield the content from calling tagof on the oldname.
+-}
+mapattrs :: [(String, String)] -> Content -> [(String, CFilter)]
 mapattrs [] _ = []
 mapattrs (x:xs) doc = 
-    let str = strof (fst x) doc
-        tag = tagof (fst x)
-        in
-        if length str > 0
-            then ((snd x), tag) : mapattrs xs doc
-            else mapattrs xs doc
+        case strof (fst x) doc of
+           "" -> mapattrs xs doc  -- Omit this tag if the content is empty
+           _ -> ((snd x), tagof (fst x)) : mapattrs xs doc
 
+{- Like HaXml's numbered function, but instead of starting with 1 and
+incrementing by 1, takes a start and a next. -}
 versanumbered :: (Enum a, Show a) => a -> a -> CFilter -> LabelFilter String
 versanumbered start next f = zip (map show [start,next..]) . f
 
+----------------------------------------------------------------------
+-- ADDRESS BOOK
+----------------------------------------------------------------------
+
+-- Main address book processor
 getAddresses :: Integer -> Content -> ([Content], Integer, Integer)
 getAddresses startuid doc = 
     (concatMap contacts contactselem, 
@@ -85,6 +111,7 @@ getAddresses startuid doc =
         rowdata = children `with` tag "Contact"
         rows = numbered `x` versanumbered startuid (startuid - 1) $ rowdata
         contactcomps = rowfunc `oo` rows
+
         lastcontactcomp = head . reverse . contactcomps
         lastrid = showattv . attrofelem "rid" . lastcontactcomp
         lastuid = showattv . attrofelem "Uid" . lastcontactcomp
@@ -115,6 +142,7 @@ getAddresses startuid doc =
                    ("SUFX", "Suffix"),
                    --FileAs handled later
                    --Categories not handled
+                   --UID handled later
                    ("DMAL", "DefaultEmail"),
                    ("MAL1", "Emails"),
                    ("HSTR", "HomeStreet"),

@@ -2,12 +2,14 @@
 
 HAXML := HaXml-1.12/src
 
-dtmconv: dtmconv.lhs
-	ghc -cpp --make -O2 -i$(HAXML) -o dtmconv dtmconv.lhs 
+dtmconv: dtmconv.hs
+	ghc -cpp --make -O2 -i$(HAXML) -o dtmconv dtmconv.hs 
 
-dtmconv.static: dtmconv.lhs
-	hmake -I$(HAXML) -nhc98 -o dtmconv.static dtmconv.lhs
+dtmconv.static: dtmconv.hs
+	hmake -I$(HAXML) -nhc98 -o dtmconv.static dtmconv.hs
 
+hugs:
+	hugs "-Fcpp -P -traditional -D__HUGS__" -98 +o -P$(HAXML): dtmconv.hs
 clean:
 	-for ASDF in hi o ; do find . -name "*.$$ASDF" -exec rm -rvf {} \; ; done
 	-find . -name "*~" -exec rm -rvf {} \;

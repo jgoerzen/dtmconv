@@ -72,6 +72,8 @@ splitdate x =
       (_, "") -> Nothing
       (date, time) -> Just (date, tail time)
 
+
+
 -- Program entry point
 main :: IO ()
 main = do time <- epochTime
@@ -273,9 +275,11 @@ getDB startuid doc =
     -- Each row of the output
     row_event :: String -> CFilter
     row_event uid inp = mkElemAttr "event" rowattrs [] inp
-                where
-                rowattrs = mapattrs eventmap inp
-                eventmap = [("DSRP", "description"),
-                            ("PLCE", "location"),
-                            ("MEM1", "note")
-                           ]
+        where
+        rowattrs = (mapattrs eventmap inp) ++ customattrs
+        customattrs = 
+            [("uid", literal uid)]
+        eventmap = [("DSRP", "description"),
+                    ("PLCE", "location"),
+                    ("MEM1", "note")
+                   ]

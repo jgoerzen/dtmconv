@@ -336,7 +336,7 @@ getDB tzoffset startuid doc =
         alarm :: Content -> [(String, CFilter)]
         alarm inp = case strof "ARON" inp of
                       "1" -> -- alarm on
-                             [("alarm", literal $ show $ (read ((strof "ARMN" inp))::Int) * 60),
+                             [("alarm", literal $ show $ (read ((strof "ARMN" inp))::Int) {-* 60-}),
                               ("sound", literal "loud")]
                       _ -> []   -- alarm off
 
@@ -372,7 +372,7 @@ getDB tzoffset startuid doc =
                                  return $ show ct
                                 ) of
                           Nothing -> []
-                          Just x -> [("start", literal (show x))]
+                          Just x -> [("start", literal x)]
                           ++
                         case (do c <- tag2cttz "ALED" inp
                                  ct <- ct2epoch $ 
@@ -380,7 +380,7 @@ getDB tzoffset startuid doc =
                                  return $ show ct
                              ) of
                           Nothing -> []
-                          Just x -> [("end", literal (show x))]
+                          Just x -> [("end", literal x)]
                   _ -> -- Non-all-day item
                        case (do c <- tag2ct "TIM1" inp
                                 ct <- ct2epoch c
@@ -398,7 +398,9 @@ getDB tzoffset startuid doc =
 
         customattrs :: [(String, CFilter)]
         customattrs = 
-            [("uid", literal uid)]
+            [("uid", literal uid),
+             ("created", literal $ show $ ((read uid)::Integer) * (-1)),
+             ("categories", literal "")]
         eventmap = [("DSRP", "description"),
                     ("PLCE", "location"),
                     ("MEM1", "note")

@@ -1,4 +1,9 @@
 -- arch-tag: DTM conversion program
+
+{- 
+TODO: categories
+rid
+-}
 {- Copyright (c) 2005 John Goerzen
 
    This program is free software; you can redistribute it and/or modify
@@ -47,6 +52,9 @@ xml2str =
 main = do doc <- parse
           writeFile "addressbook.xml" (xml2str (getAddresses doc))
 
+tagof x = keep /> tag x /> txt
+strof x = verbatim . tag x 
+
 getAddresses doc = 
     concatMap contacts contactselem
     where 
@@ -61,12 +69,30 @@ getAddresses doc =
         ridmax c = show . maximum . map ((read::String->Integer) . showattv . attrofelem "card") $ c
             
         row = 
-            let fname = keep /> tag "FNME" /> txt
-                lname = keep /> tag "LNME" /> txt
-            in
             mkElemAttr "Contact" 
-                       [("FirstName", fname)
-                       ,("LastName", lname)
+                       [
+                        ("FirstName", tagof "FNME")
+                       ,("LastName", tagof "LNME")
+                       ,("FileAs", \x -> if (strof "FULL" x) `elem` ["", ",", ", "]
+                                      then tagof "CPNY" x
+                                      else tagof "FULL" x)
+                       ,("Company", tagof "CPNY")
+                       ,("JobTitle", tagof "PSTN")
+                       ,("HomeStreet", tagof "HSTR")
+                       ,("HomeCity", tagof "HCTY")
+                       ,("HomeState", tagof "HSTA")
+                       ,("HomeZip", tagof "HZIP")
+                       ,("BusinessPhone", tagof "TEL2")
+                       ,("HomePhone", tagof "TEL1")
+                       ,("HomeFax", tagof "FAX1")
+                       ,("Emails", tagof "MAL1")
+                       ,("BusinessPager", tagof "BPGR")
+                       ,("HomeMobile", tagof "CPS1")
+                       ,("Notes", tagof "MEM1")
+                       ,("Categories", literal "")
+                       ,("uid", tagof "SYID")
+                        -- rid
+                       ,("rinfo", literal "1")
                        ] []
 
                                            

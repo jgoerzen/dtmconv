@@ -53,19 +53,15 @@ main = do doc <- parse
 
 tagof x = keep /> tag x /> txt
 strof x y = verbatim $ tagof x $ y
-strof2 x y = txt `o` children `o` tag x $ y
 
 mapattrs [] _ = []
 mapattrs (x:xs) doc = 
     let str = strof (fst x) doc
         tag = tagof (fst x)
         in
-        {-
-        (snd x, (strof2 (fst x))) : mapattrs xs doc
-        -}
         if length str > 0
             then ((snd x), tag) : mapattrs xs doc
-            else ((fst x), literal str) : mapattrs xs doc
+            else mapattrs xs doc
 
 getAddresses doc = 
     concatMap contacts contactselem
@@ -83,10 +79,13 @@ getAddresses doc =
         row _ [] = []
         row rid (x:xs) =
             mkElemAttr "Contact"
-                       (("FileAs", \x -> if (strof "FULL" x) `elem` ["", ",", ", "]
+                           (
+                       [("FileAs", \x -> if (strof "FULL" x) `elem` ["", ",", ", "]
                                       then tagof "CPNY" x
                                       else tagof "FULL" x)
-                        : mapattrs addrmap x)
+                       ,("rid", literal (show rid))
+                       ,("rinfo", literal "1")
+                       ] ++ mapattrs addrmap x)
                        [] x
             : row (rid + 1) xs
 

@@ -19,10 +19,10 @@
 import Text.XML.HaXml
 
 attrofelem :: String -> Content -> AttValue
-attrofelem attrname (CElem (Elem _ al _)) =
+attrofelem attrname (CElem (Elem name al _)) =
     case lookup attrname al of
        Just x -> x
-       Nothing -> error $ "attrofelem: no " ++ attrname ++ " in " ++ (show al)
+       Nothing -> error $ "attrofelem: no " ++ attrname ++ " in " ++ name
 attrofelem _ _ =
     error "attrofelem: called on something other than a CElem"
 
@@ -48,17 +48,17 @@ main = do doc <- parse
           writeFile "addressbook.xml" (xml2str (getAddresses doc))
 
 getAddresses doc = 
-    (contacts `o` tag "Contacts" `o` children `o` tag "DTM") doc
+    concatMap contacts contactselem
     where 
-        --contact = tag "Contacts" `o` chilren `o` tag "DTM
+        contactselem = (tag "Contacts" `o` children `o` tag "DTM") doc
         rows = children `with` tag "Contact"
         contacts = mkElem "AddressBook" 
-                     [mkElem "RIDMax" [ridmax $ tag "Contact" rows]
+                     [mkElem "RIDMax" [literal (ridmax (concatMap children contactselem))]
                      ,mkElem "Groups" []
                      ,mkElem "Contacts" [row `o` rows]
                      ]
-        ridmax :: [Content] -> Content
-        ridmax = literal $ show . maximum . map (read . showattv . attrofelem "card")
+        ridmax :: [Content] -> String
+        ridmax c = show . maximum . map ((read::String->Integer) . showattv . attrofelem "card") $ c
             
         row = 
             let fname = keep /> tag "FNME" /> txt

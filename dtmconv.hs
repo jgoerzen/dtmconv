@@ -72,6 +72,10 @@ main = do time <- epochTime
           writeFile "addressbook.xml" (xml2str addressdata)
           putStrLn $ "Wrote addressbook.xml, rid 1 to " ++ (show lastrid) ++
                      ", uid " ++ (show uid) ++ " to " ++ (show lastuid)
+          let (tododata, lastuidtodo) = getTodos (lastuid - 1) doc
+          writeFile "todolist.xml" (xml2str tododata)
+          putStrLn $ "Wrote todolist.xmlm uid " ++ (show (lastuid - 1)) ++
+                     " to " ++ (show lastuidtodo)
 
 -- Finds the literal children of the named tag, and returns it/them
 tagof :: String -> CFilter
@@ -95,6 +99,28 @@ mapattrs (x:xs) doc =
 incrementing by 1, takes a start and a next. -}
 versanumbered :: (Enum a, Show a) => a -> a -> CFilter -> LabelFilter String
 versanumbered start next f = zip (map show [start,next..]) . f
+
+----------------------------------------------------------------------
+-- TODO LIST
+------------------------------------------------------------
+
+getTodos :: Integer -> Content -> ([Content], Integer)
+getTodos startuid doc =
+    (tasks `o` tag "Tasks" `o` children `o` tag "DTM" $ doc, 0)
+    where
+    -- The top-level of the output
+    tasks :: CFilter
+    tasks = mkElem "Tasks"
+            [row_task]
+            
+    -- Each row of the outpu
+    row_task :: CFilter
+    row_task inp = mkElemAttr "Task" rowattrs [] inp
+                   where
+                   rowattrs = mapattrs todomap inp
+                   todomap = [("TITL", "Summary")
+                              ,("MEM1", "Description")]
+
 
 ----------------------------------------------------------------------
 -- ADDRESS BOOK

@@ -2,7 +2,7 @@
 
 {- 
 TODO: categories
-FIX: uid
+CHECK: can rid be eliminated?
 -}
 {- Copyright (c) 2005 John Goerzen
 
@@ -85,7 +85,7 @@ getAddresses startuid doc =
         contactcomps = rowfunc `oo` rows
         lastcontactcomp = head . reverse . contactcomps
         lastrid = showattv . attrofelem "rid" . lastcontactcomp
-        lastuid = showattv . attrofelem "uid" . lastcontactcomp
+        lastuid = showattv . attrofelem "Uid" . lastcontactcomp
         contacts = mkElem "AddressBook" 
                      [mkElem "RIDMax" [literal (ridmax (concatMap children contactselem))]
                      ,mkElem "Groups" []
@@ -101,7 +101,7 @@ getAddresses startuid doc =
                                       then tagof "CPNY" x
                                       else tagof "FULL" x)
                        ,("rid", literal rid)
-                       ,("uid", literal uid)
+                       ,("Uid", literal uid)
                        ,("rinfo", literal "1")
                        ] ++ mapattrs addrmap x)
                        [] x

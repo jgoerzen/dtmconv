@@ -2,6 +2,7 @@
 
 {- 
 TODO: categories
+FIX: uid
 -}
 {- Copyright (c) 2005 John Goerzen
 
@@ -74,7 +75,7 @@ getAddresses doc =
                      ,mkElem "Contacts" [concat . row 1 . rows ]
                      ]
         ridmax :: [Content] -> String
-        ridmax c = show . maximum . map ((read::String->Integer) . showattv . attrofelem "card") $ c
+        ridmax c = show . (+) 1 . maximum . map ((read::String->Integer) . showattv . attrofelem "card") $ c
                    
         row _ [] = []
         row rid (x:xs) =

@@ -310,21 +310,26 @@ getDB tzoffset startuid doc =
 
     -- The top level of the output
     events :: CFilter
-    events = mkElem "events"
-             [row_event `oo` event_attrs]
+    events = mkElem "DATEBOOK" [
+                                mkElem "events"
+                                           [row_event `oo` event_attrs]
+                               ]
 
     count = genericLength $ children `o` inputTop $ doc
 
     -- Each row of the input
     event_attrs :: LabelFilter String
     event_attrs = versanumbered startuid (startuid - 1)
-                      (filter corruptfilter . tag "Event" `o` children)
+                      (filter corruptfilter_in . tag "Event" `o` children)
     
-    -- Filter out corrupt rows.
-    corruptfilter :: Content -> Bool
-    corruptfilter inp = if strof "ADAY" inp `elem` ["1", "0"] 
-                           then True
-                           else False
+    -- Filter out corrupt rows on input.
+    corruptfilter_in :: Content -> Bool
+    corruptfilter_in inp = if  (strof "DSRP" inp /= "") &&
+                               (strof "ADAY" inp `elem` ["1", "0"]) &&
+                               (strof "TIM1" inp /= "NULL" || strof "TIM2" inp /= "NULL") &&
+                               (strof "TIM1" inp >= "1989" || strof "TIM2" inp >= "1989")
+                               then True
+                               else False
 
     -- Each row of the output
     row_event :: String -> CFilter
@@ -398,9 +403,11 @@ getDB tzoffset startuid doc =
 
         customattrs :: [(String, CFilter)]
         customattrs = 
-            [("uid", literal uid),
-             ("created", literal $ show $ ((read uid)::Integer) * (-1)),
-             ("categories", literal "")]
+            [
+             ("categories", literal ""),
+             ("uid", literal uid)
+             --("created", literal $ show $ ((read uid)::Integer) * (-1)),
+            ]
         eventmap = [("DSRP", "description"),
                     ("PLCE", "location"),
                     ("MEM1", "note")

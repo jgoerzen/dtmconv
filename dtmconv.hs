@@ -28,7 +28,7 @@ import System.Posix.Time(epochTime)
 import System.Time
 import Text.Regex
 import Data.List
-import System.IO.Unsafe
+import MissingH.Time
 
 -- Get an attribute value from an element.
 
@@ -78,6 +78,12 @@ splitdate x =
 tag2ct :: String -> Content -> Maybe CalendarTime
 tag2ct x y = date2ct $ strof x y
 
+ct2loc :: CalendarTime -> IO Integer
+ct2loc = calendarTimeToEpoch
+
+ct2utc :: CalendarTime -> Integer
+ct2utc = calendarTimeUTCToEpoch
+
 -- Convert CT to epoch time.
 ct2epoch :: CalendarTime -> Maybe Integer
 ct2epoch ct = 
@@ -113,7 +119,6 @@ date2ct d =
 -- Program entry point
 main :: IO ()
 main = do time <- epochTime
-          tzoffset <- getTZOffset
           -- UIDs start from a negative timestamp and decrease from there
           let uid = (fromIntegral time) * (-1)
           doc <- parse
@@ -125,15 +130,11 @@ main = do time <- epochTime
           writeFile "todolist.xml" (xml2str tododata)
           putStrLn $ "Wrote todolist.xml, uid " ++ (show (lastuid - 1)) ++
                      " to " ++ (show lastuidtodo)
-          let (dbdata, lastuiddb) = getDB tzoffset (lastuidtodo - 1) doc
+          let (dbdata, lastuiddb) = getDB (lastuidtodo - 1) doc
           writeFile "datebook.xml" (xml2str dbdata)
           putStrLn $ "Wrote datebook.xml, uid " ++ (show (lastuidtodo - 1)) ++
                      " to " ++ (show lastuiddb)
           putStrLn " *** Conversion completed successfully! ***"
-    where getTZOffset :: IO Int
-          getTZOffset = do t <- getClockTime
-                           cal <- toCalendarTime t
-                           return $ ctTZ cal
 
 -- Finds the literal children of the named tag, and returns it/them
 tagof :: String -> CFilter
@@ -293,16 +294,11 @@ getAddresses startuid doc =
 ------------------------------------------------------------
 
 -- Main date book processor
-getDB :: Int -> Integer -> Content -> ([Content], Integer)
-getDB tzoffset startuid doc = 
+getDB :: Integer -> Content -> ([Content], Integer)
+getDB startuid doc = 
     (events `o` inputTop $ doc,
             startuid - count)
     where
-    -- Tag to calendar time, considering tz
-    tag2cttz :: String -> Content -> Maybe CalendarTime
-    tag2cttz x y = case tag2ct x y of
-                     Just a -> Just $ a {ctTZ = tzoffset}
-                     Nothing -> Nothing
 
     -- The top-level of the input
     inputTop :: CFilter
@@ -362,44 +358,42 @@ getDB tzoffset startuid doc =
               _ -> []           -- unknown
             ++ case strof "REND" inp of
                  "1" -> [("rhasenddate", literal "1")] ++
-                        case tag2ct "REDT" inp >>= ct2epoch of
+                        case tag2ct "REDT" inp >>= return . ct2utc of
                           Nothing -> []
                           Just x -> [("enddt", literal (show x))]
                  _ -> []
 
+        tag2loc :: String -> String -> 
+                   (CalendarTime -> CalendarTime) -> Content -> 
+                   IO [(String, CFilter)]
+        tag2loc oldtagname newtagname func inp =
+            case tag2ct oldtagname inp of
+               Nothing -> return []
+               Just ct -> do x <- ct2loc $ func ct
+                             return $ [(newtagname, literal (show x))]
+        tag2utc :: String -> String -> 
+                   (CalendarTime -> CalendarTime) -> Content -> 
+                   [(String, CFilter)]
+        tag2utc oldtagname newtagname func inp =
+            case tag2ct oldtagname inp of
+               Nothing -> []
+               Just ct -> let x = ct2utc $ func ct
+                              in [(newtagname, literal (show x))]
+
+
         times :: Content -> [(String, CFilter)]
         times inp = case strof "ADAY" inp of
                   "1" ->  -- All-day item
-                      [("type", literal "AllDay")] ++ 
-                        case (do c <- tag2cttz "ALSD" inp
-                                 ct <- ct2epoch $
-                                        c {ctHour = 0, ctMin = 0, ctSec = 0}
-                                 return $ show ct
-                                ) of
-                          Nothing -> []
-                          Just x -> [("start", literal x)]
-                          ++
-                        case (do c <- tag2cttz "ALED" inp
-                                 ct <- ct2epoch $ 
-                                        c {ctHour = 23, ctMin = 59, ctSec = 0}
-                                 return $ show ct
-                             ) of
-                          Nothing -> []
-                          Just x -> [("end", literal x)]
+                          do alsd <- tag2loc "ALSD" "start" 
+                                       (\ct -> ct {ctHour = 0, ctMin = 0,
+                                                   ctSec = 0}) inp
+                             aled <- tag2loc "ALED" "end"
+                                       (\ct -> ct {ctHour = 23, ctMin = 59,
+                                                   ctSec = 0}) inp
+                             return $ alsd ++ aled
                   _ -> -- Non-all-day item
-                       case (do c <- tag2ct "TIM1" inp
-                                ct <- ct2epoch c
-                                return $ show ct
-                            ) of
-                         Nothing -> []
-                         Just x -> [("start", literal x)]
-                       ++
-                       case (do c <- tag2ct "TIM2" inp
-                                ct <- ct2epoch c
-                                return $ show ct
-                            ) of
-                         Nothing -> []
-                         Just x -> [("end", literal x)]
+                       return $ tag2utc "TIM1" "start" id inp
+                             ++ tag2utc "TIM2" "end" id inp
 
         customattrs :: [(String, CFilter)]
         customattrs = 

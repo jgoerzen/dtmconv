@@ -103,7 +103,7 @@ versanumbered start next f = zip (map show [start,next..]) . f
 -- Main address book processor
 getAddresses :: Integer -> Content -> ([Content], Integer, Integer)
 getAddresses startuid doc = 
-    (concatMap contacts contactselem, 
+    (concatMap addressbook contactselem, 
      (read (concatMap lastrid contactselem))::Integer, 
      (read (concatMap lastuid contactselem))::Integer)
     where 
@@ -134,14 +134,20 @@ getAddresses startuid doc =
         lastuid :: Content -> String
         lastuid = showattv . attrofelem "Uid" . lastcontactcomp
                   
-        contacts = mkElem "AddressBook" 
+        -- The entire address book file
+        addressbook :: CFilter
+        addressbook = mkElem "AddressBook" 
                      [mkElem "RIDMax" [literal (ridmax (concatMap children contactselem))]
                      ,mkElem "Groups" []
                      ,mkElem "Contacts" [contactcomps]
                      ]
+        
+        -- Calculate the maximum RID value
         ridmax :: [Content] -> String
         ridmax c = show . (+) 1 . maximum . map ((read::String->Integer) . showattv . attrofelem "card") $ c
                    
+        -- Process each row
+        rowfunc :: (String, String) -> CFilter
         rowfunc (rid, uid) x =
             mkElemAttr "Contact"
                            (
@@ -154,6 +160,8 @@ getAddresses startuid doc =
                        ] ++ mapattrs addrmap x)
                        [] x
 
+        -- The address mapping
+        addrmap :: [(String, String)]
         addrmap = [("TITL", "Title"),
                    ("FNME", "FirstName"),
                    ("MNME", "MiddleName"),

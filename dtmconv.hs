@@ -107,9 +107,21 @@ getAddresses startuid doc =
      (read (concatMap lastrid contactselem))::Integer, 
      (read (concatMap lastuid contactselem))::Integer)
     where 
+        -- The <Contacts> tag
         contactselem = (tag "Contacts" `o` children `o` tag "DTM") doc
-        rowdata = children `with` tag "Contact"
+        
+        -- Children of the <Contact> tags...
+        -- Expected to be passed the Contact tag
+        rowdata :: CFilter
+        -- Same as: rowdata = children `with` tag "Contact"
+        rowdata = tag "Contact" `o` children
+
+        -- The input rows, numbered.
+        rows :: LabelFilter (String, String)
         rows = numbered `x` versanumbered startuid (startuid - 1) $ rowdata
+
+        -- The output rows
+        contactcomps :: CFilter
         contactcomps = rowfunc `oo` rows
 
         lastcontactcomp = head . reverse . contactcomps

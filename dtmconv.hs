@@ -18,13 +18,19 @@
 
 import Text.XML.HaXml
 
-attrofelem :: String -> Content -> String
-attrofelem attrname (CElem (Elem _ [al] _)) =
+attrofelem :: String -> Content -> AttValue
+attrofelem attrname (CElem (Elem _ al _)) =
     case lookup attrname al of
        Just x -> x
        Nothing -> error $ "attrofelem: no " ++ attrname ++ " in " ++ (show al)
 attrofelem _ _ =
     error "attrofelem: called on something other than a CElem"
+
+showattv :: AttValue -> String
+showattv (AttValue v) = worker v
+                        where worker [] = []
+                              worker (Left x:xs) = x ++ worker xs
+                              worker (Right x:xs) = worker xs
 
 parse =
     do c <- getContents
@@ -39,19 +45,20 @@ xml2str =
         ppContent _   = error "produced more than one output"
 
 main = do doc <- parse
-          addr <- getAddresses doc
-          writeFile "addressbook.xml" (xml2str addr)
+          writeFile "addressbook.xml" (xml2str (getAddresses doc))
 
 getAddresses doc = 
     (contacts `o` tag "Contacts" `o` children `o` tag "DTM") doc
     where 
+        --contact = tag "Contacts" `o` chilren `o` tag "DTM
         rows = children `with` tag "Contact"
         contacts = mkElem "AddressBook" 
-                     [mkElem "RIDMax" [literal (show $ ridmax $ tag "Contact")]
+                     [mkElem "RIDMax" [ridmax $ tag "Contact" rows]
                      ,mkElem "Groups" []
                      ,mkElem "Contacts" [row `o` rows]
                      ]
-        ridmax = maximum $ map (read . attrofelem "card")
+        ridmax :: [Content] -> Content
+        ridmax = literal $ show . maximum . map (read . showattv . attrofelem "card")
             
         row = 
             let fname = keep /> tag "FNME" /> txt

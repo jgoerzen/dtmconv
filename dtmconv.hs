@@ -124,9 +124,16 @@ getAddresses startuid doc =
         contactcomps :: CFilter
         contactcomps = rowfunc `oo` rows
 
+        -- The last output row
+        lastcontactcomp :: Content -> Content
         lastcontactcomp = head . reverse . contactcomps
+
+        -- The last rid
+        lastrid :: Content -> String
         lastrid = showattv . attrofelem "rid" . lastcontactcomp
+        lastuid :: Content -> String
         lastuid = showattv . attrofelem "Uid" . lastcontactcomp
+                  
         contacts = mkElem "AddressBook" 
                      [mkElem "RIDMax" [literal (ridmax (concatMap children contactselem))]
                      ,mkElem "Groups" []

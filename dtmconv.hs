@@ -86,6 +86,11 @@ main = do time <- epochTime
           writeFile "todolist.xml" (xml2str tododata)
           putStrLn $ "Wrote todolist.xml, uid " ++ (show (lastuid - 1)) ++
                      " to " ++ (show lastuidtodo)
+          let (dbdata, lastuiddb) = getDB (lastuidtodo - 1) doc
+          writeFile "datebook.xml" (xml2str dbdata)
+          putStrLn $ "Wrote datebook.xml, uid " ++ (show (lastuidtodo - 1)) ++
+                     " to " ++ (show lastuiddb)
+          putStrLn " *** Conversion completed successfully! ***"
 
 -- Finds the literal children of the named tag, and returns it/them
 tagof :: String -> CFilter
@@ -215,49 +220,62 @@ getAddresses startuid doc =
 
         -- The address mapping
         addrmap :: [(String, String)]
-        addrmap = [("TITL", "Title"),
-                   ("FNME", "FirstName"),
-                   ("MNME", "MiddleName"),
-                   ("LNME", "LastName"),
+        addrmap = [("TITL", "Title"),          ("FNME", "FirstName"),
+                   ("MNME", "MiddleName"),     ("LNME", "LastName"),
                    ("SUFX", "Suffix"),
-                   --FileAs handled later
-                   --Categories not handled
-                   --UID handled later
-                   ("DMAL", "DefaultEmail"),
-                   ("MAL1", "Emails"),
-                   ("HSTR", "HomeStreet"),
-                   ("HCTY", "HomeCity"),
-                   ("HSTA", "HomeState"),
-                   ("HZIP", "HomeZip"),
-                   ("HCTR", "Homecountry"),
-                   ("TEL1", "HomePhone"),
-                   ("FAX1", "HomeFax"),
-                   ("CPS1", "HomeMobile"),
-                   ("HWEB", "HomeWebPage"),
-                   ("CPNY", "Company"),
-                   ("BSTR", "BusinessStreet"),
-                   ("BCTY", "BusinessCity"),
-                   ("BSTA", "BusinessState"),
-                   ("BZIP", "BusinessZip"),
-                   ("BCTR", "BusinessCountry"),
-                   ("BWEB", "BusinessWebPage"),
-                   ("PSTN", "JobTitle"),
-                   ("SCTN", "Department"),
-                   ("OFCE", "Office"),
-                   ("TEL2", "BusinessPhone"),
-                   ("FAX2", "BusinessFax"),
-                   ("CPS2", "BusinessMobile"),
-                   ("BPGR", "BusinessPager"),
-                   ("PRFS", "Profession"),
-                   ("ASST", "Assistant"),
-                   ("MNGR", "Manager"),
-                   ("SPUS", "Spouse"),
-                   ("CLDR", "Children"),
-                   ("GNDR", "Gender"),
-                   ("BRTH", "Birthday"),
-                   ("ANIV", "Anniversary"),
-                   ("NCNM", "Nickname"),
+                   --FileAs, Categories, UID handled earlier
+                   ("DMAL", "DefaultEmail"),   ("MAL1", "Emails"),
+                   ("HSTR", "HomeStreet"),     ("HCTY", "HomeCity"),
+                   ("HSTA", "HomeState"),      ("HZIP", "HomeZip"),
+                   ("HCTR", "Homecountry"),    ("TEL1", "HomePhone"),
+                   ("FAX1", "HomeFax"),        ("CPS1", "HomeMobile"),
+                   ("HWEB", "HomeWebPage"),    ("CPNY", "Company"),
+                   ("BSTR", "BusinessStreet"), ("BCTY", "BusinessCity"),
+                   ("BSTA", "BusinessState"),  ("BZIP", "BusinessZip"),
+                   ("BCTR", "BusinessCountry"),("BWEB", "BusinessWebPage"),
+                   ("PSTN", "JobTitle"),       ("SCTN", "Department"),
+                   ("OFCE", "Office"),         ("TEL2", "BusinessPhone"),
+                   ("FAX2", "BusinessFax"),    ("CPS2", "BusinessMobile"),
+                   ("BPGR", "BusinessPager"),  ("PRFS", "Profession"),
+                   ("ASST", "Assistant"),      ("MNGR", "Manager"),
+                   ("SPUS", "Spouse"),         ("CLDR", "Children"),
+                   ("GNDR", "Gender"),         ("BRTH", "Birthday"),
+                   ("ANIV", "Anniversary"),    ("NCNM", "Nickname"),
                    ("MEM1", "Notes")
                   ]
                                            
+----------------------------------------------------------------------
+-- DATE BOOK
+------------------------------------------------------------
+
+-- Main date book processor
+getDB :: Integer -> Content -> ([Content], Integer)
+getDB startuid doc = 
+    (events `o` inputTop $ doc,
+            startuid - count)
+    where
+    -- The top-level of the input
+    inputTop :: CFilter
+    inputTop = tag "Events" `o` children `o` tag "DTM"
+
+    -- The top level of the output
+    events :: CFilter
+    events = mkElem "events"
+             [row_event `oo` event_attrs]
+
+    count = genericLength $ children `o` inputTop $ doc
+
+    -- Each row of the input
+    event_attrs :: LabelFilter String
+    event_attrs = versanumbered startuid (startuid - 1)
+                      (tag "Event" `o` children)
     
+    -- Each row of the output
+    row_event :: String -> CFilter
+    row_event uid inp = mkElemAttr "event" rowattrs [] inp
+                where
+                rowattrs = mapattrs eventmap inp
+                eventmap = [("DSRP", "description"),
+                            ("PLCE", "location"),
+                            ("MEM1", "note")
+                           ]

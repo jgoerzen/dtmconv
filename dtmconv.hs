@@ -290,6 +290,12 @@ getDB tzoffset startuid doc =
     (events `o` inputTop $ doc,
             startuid - count)
     where
+    -- Tag to calendar time, considering tz
+    tag2cttz :: String -> Content -> Maybe CalendarTime
+    tag2cttz x y = case tag2ct x y of
+                     Just a -> Just $ a {ctTZ = tzoffset}
+                     Nothing -> Nothing
+
     -- The top-level of the input
     inputTop :: CFilter
     inputTop = tag "Events" `o` children `o` tag "DTM"

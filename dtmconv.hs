@@ -2,7 +2,6 @@
 
 {- 
 TODO: categories
-rid
 -}
 {- Copyright (c) 2005 John Goerzen
 
@@ -63,12 +62,13 @@ getAddresses doc =
         contacts = mkElem "AddressBook" 
                      [mkElem "RIDMax" [literal (ridmax (concatMap children contactselem))]
                      ,mkElem "Groups" []
-                     ,mkElem "Contacts" [row `o` rows]
+                     ,mkElem "Contacts" [concat . row 1 . rows ]
                      ]
         ridmax :: [Content] -> String
         ridmax c = show . maximum . map ((read::String->Integer) . showattv . attrofelem "card") $ c
             
-        row = 
+        row _ [] = []
+        row rid (x:xs) =
             mkElemAttr "Contact" 
                        [
                         ("FirstName", tagof "FNME")
@@ -91,9 +91,10 @@ getAddresses doc =
                        ,("Notes", tagof "MEM1")
                        ,("Categories", literal "")
                        ,("uid", tagof "SYID")
-                        -- rid
+                       ,("rid", literal (show rid))
                        ,("rinfo", literal "1")
-                       ] []
+                       ] [] x
+            : row (rid + 1) xs
 
                                            
     

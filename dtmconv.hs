@@ -50,7 +50,7 @@ xml2str =
         ppContent _   = error "produced more than one output"
 
 main = do doc <- parse
-          writeFile "addressbook.xml" (xml2str (getAddresses doc))
+          writeFile "addressbook.xml" (xml2str (getAddresses (-1) doc ))
 
 tagof x = keep /> tag x /> txt
 strof x y = verbatim $ tagof x $ y
@@ -64,21 +64,30 @@ mapattrs (x:xs) doc =
             then ((snd x), tag) : mapattrs xs doc
             else mapattrs xs doc
 
-getAddresses doc = 
+procrows :: Integer -> Integer -> (Integer -> Integer -> CFilter) -> [Content] -> (Integer, Integer, [Content])
+procrows = worker []
+    where
+    worker :: [[Content]] -> Integer -> Integer -> (Integer -> Integer -> CFilter) -> [Content] -> (Integer, Integer, [Content])
+    worker accum rid uid _ [] = (rid, uid, concat accum)
+    worker accum rid uid f (x:xs) =
+        worker ((f rid uid x) : accum) (rid + 1) (uid - 1) f xs
+
+getAddresses startuid doc = 
     concatMap contacts contactselem
     where 
         contactselem = (tag "Contacts" `o` children `o` tag "DTM") doc
-        rows = children `with` tag "Contact"
+        (nextuid, newxrid, rowelems) =
+            procrows 1 startuid rowfunc (concatMap rowdata contactselem)
+        rowdata = children `with` tag "Contact"
         contacts = mkElem "AddressBook" 
                      [mkElem "RIDMax" [literal (ridmax (concatMap children contactselem))]
                      ,mkElem "Groups" []
-                     ,mkElem "Contacts" [concat . row 1 . rows ]
+                     ,mkElem "Contacts" [rowelems]
                      ]
         ridmax :: [Content] -> String
         ridmax c = show . (+) 1 . maximum . map ((read::String->Integer) . showattv . attrofelem "card") $ c
                    
-        row _ [] = []
-        row rid (x:xs) =
+        rowfunc rid uid x =
             mkElemAttr "Contact"
                            (
                        [("FileAs", \x -> if (strof "FULL" x) `elem` ["", ",", ", "]
@@ -88,7 +97,6 @@ getAddresses doc =
                        ,("rinfo", literal "1")
                        ] ++ mapattrs addrmap x)
                        [] x
-            : row (rid + 1) xs
 
         addrmap = [("SYID", "uid"),
                    ("TITL", "Title"),

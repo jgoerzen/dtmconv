@@ -140,6 +140,16 @@ getTodos startuid doc =
                                      Nothing -> []
                                      Just (date, _) -> [("CompletedDate",
                                                          literal date)]
+                              ++ case splitdate . strof "LTDY" $ inp of
+                                     Nothing -> [("HasDate", literal "0")]
+                                     Just (date, _) ->
+                                         [("HasDate", literal "1")
+                                         ,("DateYear", literal year)
+                                         ,("DateMonth", literal month)
+                                         ,("DateDay", literal day)]
+                                         where (year, yr) = splitAt 4 date
+                                               (month, mr) = splitAt 2 yr
+                                               day = mr
                    todomap = [("TITL", "Summary")
                              ,("MEM1", "Description")
                              ,("PRTY", "Priority")

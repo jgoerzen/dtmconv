@@ -337,8 +337,10 @@ getDB startuid doc =
         alarm :: Content -> [(String, CFilter)]
         alarm inp = case strof "ARON" inp of
                       "1" -> -- alarm on
-                             [("alarm", literal $ show $ (read ((strof "ARMN" inp))::Int) {-* 60-}),
-                              ("sound", literal "loud")]
+                             if strof "ARMN" inp /= "0" then
+                                    [("alarm", literal $ show $ (read ((strof "ARMN" inp))::Int) {-* 60-}),
+                                                                                                              ("sound", literal "loud")]
+                                    else []
                       _ -> []   -- alarm off
 
         rfrq :: Content -> [(String, CFilter)]

@@ -25,6 +25,7 @@ CHECK: can rid be eliminated? (palm uses it, so it doesn't seem to harm anything
 
 import Text.XML.HaXml
 import System.Posix.Time(epochTime)
+import System.Time
 import Text.Regex
 import Data.List
 
@@ -77,6 +78,7 @@ splitdate x =
 -- Program entry point
 main :: IO ()
 main = do time <- epochTime
+          tzoffset <- getTZOffset
           -- UIDs start from a negative timestamp and decrease from there
           let uid = (fromIntegral time) * (-1)
           doc <- parse
@@ -88,11 +90,15 @@ main = do time <- epochTime
           writeFile "todolist.xml" (xml2str tododata)
           putStrLn $ "Wrote todolist.xml, uid " ++ (show (lastuid - 1)) ++
                      " to " ++ (show lastuidtodo)
-          let (dbdata, lastuiddb) = getDB (lastuidtodo - 1) doc
+          let (dbdata, lastuiddb) = getDB tzoffset (lastuidtodo - 1) doc
           writeFile "datebook.xml" (xml2str dbdata)
           putStrLn $ "Wrote datebook.xml, uid " ++ (show (lastuidtodo - 1)) ++
                      " to " ++ (show lastuiddb)
           putStrLn " *** Conversion completed successfully! ***"
+    where getTZOffset :: IO Int
+          getTZOffset = do t <- getClockTime
+                           cal <- toCalendarTime t
+                           return $ ctTZ cal
 
 -- Finds the literal children of the named tag, and returns it/them
 tagof :: String -> CFilter
@@ -251,8 +257,8 @@ getAddresses startuid doc =
 ------------------------------------------------------------
 
 -- Main date book processor
-getDB :: Integer -> Content -> ([Content], Integer)
-getDB startuid doc = 
+getDB :: Int -> Integer -> Content -> ([Content], Integer)
+getDB tzoffset startuid doc = 
     (events `o` inputTop $ doc,
             startuid - count)
     where

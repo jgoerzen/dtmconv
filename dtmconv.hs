@@ -18,6 +18,14 @@
 
 import Text.XML.HaXml
 
+attrofelem :: String -> Content -> String
+attrofelem attrname (CElem (Elem _ [al] _)) =
+    case lookup attrname al of
+       Just x -> x
+       Nothing -> error $ "attrofelem: no " ++ attrname ++ " in " ++ (show al)
+attrofelem _ _ =
+    error "attrofelem: called on something other than a CElem"
+
 parse =
     do c <- getContents
        return $ getContent $ xmlParse "(stdin)" c
@@ -35,20 +43,16 @@ main = do doc <- parse
           writeFile "addressbook.xml" (xml2str addr)
 
 getAddresses doc = 
-    do putStrLn "one"
-       --putStrLn (xml2str [doc])
-       --putStrLn $ xml2str $ tag "Contacts" `o` children `o` tag "DTM" $ doc
-       putStrLn "two"
-       putStrLn (xml2str x)
-       putStrLn "three"
-       return x
+    (contacts `o` tag "Contacts" `o` children `o` tag "DTM") doc
     where 
-        x = (contacts `o` tag "Contacts" `o` children `o` tag "DTM") doc
+        rows = children `with` tag "Contact"
         contacts = mkElem "AddressBook" 
-                     [mkElem "RIDMax" [literal "foo"]
+                     [mkElem "RIDMax" [literal (show $ ridmax $ tag "Contact")]
                      ,mkElem "Groups" []
-                     ,mkElem "Contacts" [row `o` children `with` tag "Contact"]
+                     ,mkElem "Contacts" [row `o` rows]
                      ]
+        ridmax = maximum $ map (read . attrofelem "card")
+            
         row = 
             let fname = keep /> tag "FNME" /> txt
                 lname = keep /> tag "LNME" /> txt

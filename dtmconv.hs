@@ -25,6 +25,7 @@ CHECK: can rid be eliminated? (palm uses it, so it doesn't seem to harm anything
 
 import Text.XML.HaXml
 import System.Posix.Time(epochTime)
+import Text.Regex
 
 -- Get an attribute value from an element.
 
@@ -61,6 +62,14 @@ xml2str =
         ppContent [CElem e] = element e
         ppContent []  = error "produced no output"
         ppContent _   = error "produced more than one output"
+
+-- Split a date.  Returns Just (date, time) or Nothing if the input
+-- was NULL or otherwise unparsable.
+splitdate :: String -> Maybe (String, String)
+splitdate x = 
+    case break (== 'T') x of
+      (_, "") -> Nothing
+      (date, time) -> Just (date, tail time)
 
 -- Program entry point
 main :: IO ()
@@ -118,14 +127,19 @@ getTodos startuid doc =
     row_task inp = mkElemAttr "Task" rowattrs [] inp
                    where
                    rowattrs = mapattrs todomap inp
-                              ++ 
-                              [
-                               ("Completed",
-                                 if (strof "MARK" inp) == "0"
-                                    then literal "1"
-                                    else literal "0"
-                               )
-                              ]
+                              ++ [("Completed",
+                                              if (strof "MARK" inp) == "0"
+                                                 then literal "1"
+                                                      else literal "0"
+                                  )]
+                              ++ case splitdate . strof "ETDY" $ inp of
+                                     Nothing -> []
+                                     Just (date, _) -> [("StartDate",
+                                                         literal date)]
+                              ++ case splitdate . strof "FNDY" $ inp of
+                                     Nothing -> []
+                                     Just (date, _) -> [("CompletedDate",
+                                                         literal date)]
                    todomap = [("TITL", "Summary")
                              ,("MEM1", "Description")
                              ,("PRTY", "Priority")

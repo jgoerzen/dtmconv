@@ -111,7 +111,7 @@ getTodos startuid doc =
     -- The top-level of the output
     tasks :: CFilter
     tasks = mkElem "Tasks"
-            [row_task]
+            [row_task `o` tag "Task" `o` children]
             
     -- Each row of the outpu
     row_task :: CFilter

@@ -73,6 +73,33 @@ splitdate x =
       (_, "") -> Nothing
       (date, time) -> Just (date, tail time)
 
+-- Convert a tag to calendar time.
+tag2ct :: String -> Content -> Maybe CalendarTime
+tag2ct x y = date2ct $ strof x y
+
+-- Convert a date to a generic calendar time object.
+-- Direct conversion.  Must adjust tz in calendar time object if necessary.
+date2ct :: String -> Maybe CalendarTime
+date2ct d =
+    case matchRegexAll dregex d of
+      Just (_, _, _, [year, month, day, hour, min, sec]) ->
+          Just $ CalendarTime
+                   {ctYear = read year,
+                    ctMonth = toEnum ((read month) - 1),
+                    ctDay = read day,
+                    ctHour = read hour,
+                    ctMin = read min,
+                    ctSec = read sec,
+                    ctPicosec = 0,
+                    ctWDay = Sunday,
+                    ctYDay = 0,
+                    ctTZName = "",
+                    ctTZ = 0,
+                    ctIsDST = False}
+      Nothing -> Nothing
+      Just (_, _, _, x) -> error $ "Strange result: " ++ (show x)
+    where
+    dregex = mkRegex "^([0-9][0-9][0-9][0-9])([0-9][0-9])([0-9][0-9])T([0-9][0-9])([0-9][0-9])([0-9][0-9])"
 
 
 -- Program entry point
@@ -251,6 +278,7 @@ getAddresses startuid doc =
                    ("ANIV", "Anniversary"),    ("NCNM", "Nickname"),
                    ("MEM1", "Notes")
                   ]
+
                                            
 ----------------------------------------------------------------------
 -- DATE BOOK

@@ -77,6 +77,11 @@ splitdate x =
 tag2ct :: String -> Content -> Maybe CalendarTime
 tag2ct x y = date2ct $ strof x y
 
+-- Convert CT to epoch time.
+ct2epoch :: CalendarTime -> Integer
+ct2epoch ct = case toClockTime ct of
+                 TOD x _ -> x
+
 -- Convert a date to a generic calendar time object.
 -- Direct conversion.  Must adjust tz in calendar time object if necessary.
 date2ct :: String -> Maybe CalendarTime
@@ -317,6 +322,11 @@ getDB tzoffset startuid doc =
     row_event uid inp = mkElemAttr "event" rowattrs [] inp
         where
         rowattrs = (mapattrs eventmap inp) ++ customattrs
+                   ++ times
+        times = case strof "ADAY" inp of
+                  "1" ->  -- All-day item
+                      [("type", "AllDay"),
+                       
         customattrs = 
             [("uid", literal uid)]
         eventmap = [("DSRP", "description"),

@@ -120,14 +120,16 @@ getTodos startuid doc =
     -- The top-level of the output
     tasks :: CFilter
     tasks = mkElem "Tasks"
-            [row_task `o` tag "Task" `o` children]
+            [row_task `oo` versanumbered startuid (startuid - 1)
+                             (tag "Task" `o` children)]
             
-    -- Each row of the outpu
-    row_task :: CFilter
-    row_task inp = mkElemAttr "Task" rowattrs [] inp
+    -- Each row of the output
+    row_task :: String -> CFilter
+    row_task uid inp = mkElemAttr "Task" rowattrs [] inp
                    where
                    rowattrs = mapattrs todomap inp
-                              ++ [("Completed",
+                              ++ [("Uid", literal uid),
+                                  ("Completed",
                                               if (strof "MARK" inp) == "0"
                                                  then literal "1"
                                                       else literal "0"

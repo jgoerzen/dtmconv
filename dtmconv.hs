@@ -130,6 +130,7 @@ getTodos startuid doc =
             
     count = genericLength $ children `o` inputTop $ doc
 
+    -- Each row if the input
     task_attrs :: LabelFilter String
     task_attrs = versanumbered startuid (startuid - 1)
                              (tag "Task" `o` children)
@@ -176,62 +177,41 @@ getTodos startuid doc =
 -- Main address book processor
 getAddresses :: Integer -> Content -> ([Content], Integer, Integer)
 getAddresses startuid doc = 
-    (concatMap addressbook contactselem, 
-     (read (concatMap lastrid contactselem))::Integer, 
-     (read (concatMap lastuid contactselem))::Integer)
+    (addressbook `o` inputTop $ doc,
+     count,
+     startuid - count)
     where 
-        -- The <Contacts> tag
-        contactselem = (tag "Contacts" `o` children `o` tag "DTM") doc
+        -- The <Contacts> tag -- top-level of the input
+        inputTop :: CFilter
+        inputTop = tag "Contacts" `o` children `o` tag "DTM"
         
-        -- Children of the <Contact> tags...
-        -- Expected to be passed the Contact tag
-        rowdata :: CFilter
-        -- Same as: rowdata = children `with` tag "Contact"
-        rowdata = tag "Contact" `o` children
-
-        -- The input rows, numbered.
-        rows :: LabelFilter (String, String)
-        rows = numbered `x` versanumbered startuid (startuid - 1) $ rowdata
-
-        -- The output rows
-        contactcomps :: CFilter
-        contactcomps = rowfunc `oo` rows
-
-        -- The last output row
-        lastcontactcomp :: Content -> Content
-        lastcontactcomp = head . reverse . contactcomps
-
-        -- The last rid
-        lastrid :: Content -> String
-        lastrid = showattv . attrofelem "rid" . lastcontactcomp
-        lastuid :: Content -> String
-        lastuid = showattv . attrofelem "Uid" . lastcontactcomp
-                  
-        -- The entire address book file
+        -- AddressBook -- the top level of the output
         addressbook :: CFilter
         addressbook = mkElem "AddressBook" 
-                     [mkElem "RIDMax" [literal (ridmax (concatMap children contactselem))]
+                     [mkElem "RIDMax" [literal (show (count + 1))]
                      ,mkElem "Groups" []
-                     ,mkElem "Contacts" [contactcomps]
+                     ,mkElem "Contacts" [row_contact `oo` contact_attrs]
                      ]
         
-        -- Calculate the maximum RID value
-        ridmax :: [Content] -> String
-        ridmax c = show . (+) 1 . maximum . map ((read::String->Integer) . showattv . attrofelem "card") $ c
-                   
-        -- Process each row
-        rowfunc :: (String, String) -> CFilter
-        rowfunc (rid, uid) x =
-            mkElemAttr "Contact"
-                           (
+        count = genericLength $ children `o` inputTop $ doc
+
+        -- Each row of the input
+        contact_attrs :: LabelFilter (String, String)
+        contact_attrs = numbered `x` versanumbered startuid (startuid - 1)
+                          $ tag "Contact" `o` children
+
+        -- Each row of the output
+        row_contact :: (String, String) -> CFilter
+        row_contact (rid, uid) inp =
+            mkElemAttr "Contact" rowattrs [] inp
+            where rowattrs = 
                        [("FileAs", \x -> if (strof "FULL" x) `elem` ["", ",", ", "]
                                       then tagof "CPNY" x
                                       else tagof "FULL" x)
                        ,("rid", literal rid)
                        ,("Uid", literal uid)
                        ,("rinfo", literal "1")
-                       ] ++ mapattrs addrmap x)
-                       [] x
+                       ] ++ mapattrs addrmap inp
 
         -- The address mapping
         addrmap :: [(String, String)]

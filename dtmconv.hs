@@ -22,6 +22,7 @@ FIX: uid
 -}
 
 import Text.XML.HaXml
+import System.Posix.Time(epochTime)
 
 attrofelem :: String -> Content -> AttValue
 attrofelem attrname (CElem (Elem name al _)) =
@@ -49,8 +50,15 @@ xml2str =
         ppContent []  = error "produced no output"
         ppContent _   = error "produced more than one output"
 
-main = do doc <- parse
-          writeFile "addressbook.xml" (xml2str (getAddresses (-1) doc ))
+main = do time <- epochTime
+          let uid = (fromIntegral time) * (-1)
+          doc <- parse
+          let (addressdata, nextrid, nextuid) = getAddresses uid doc
+          writeFile "addressbook.xml" (xml2str addressdata)
+          print $ "nextrid: "
+          print nextrid
+          print "nextuid: "
+          print nextuid
 
 tagof x = keep /> tag x /> txt
 strof x y = verbatim $ tagof x $ y
@@ -67,16 +75,23 @@ mapattrs (x:xs) doc =
 versanumbered :: (Enum a, Show a) => a -> a -> CFilter -> LabelFilter String
 versanumbered start next f = zip (map show [start,next..]) . f
 
+--getAddresses :: Integer -> Content -> ([Content], String, String)
 getAddresses startuid doc = 
-    concatMap contacts contactselem
+    (concatMap contacts contactselem, 
+     concatMap lastrid contactselem, 
+     concatMap lastuid contactselem)
     where 
         contactselem = (tag "Contacts" `o` children `o` tag "DTM") doc
         rowdata = children `with` tag "Contact"
         rows = numbered `x` versanumbered startuid (startuid - 1) $ rowdata
+        contactcomps = rowfunc `oo` rows
+        lastcontactcomp = head . reverse . contactcomps
+        lastrid = showattv . attrofelem "rid" . lastcontactcomp
+        lastuid = showattv . attrofelem "uid" . lastcontactcomp
         contacts = mkElem "AddressBook" 
                      [mkElem "RIDMax" [literal (ridmax (concatMap children contactselem))]
                      ,mkElem "Groups" []
-                     ,mkElem "Contacts" [rowfunc `oo` rows]
+                     ,mkElem "Contacts" [contactcomps]
                      ]
         ridmax :: [Content] -> String
         ridmax c = show . (+) 1 . maximum . map ((read::String->Integer) . showattv . attrofelem "card") $ c

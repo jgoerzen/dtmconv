@@ -1,3 +1,9 @@
+----------------------------------------------------------------------
+THIS SOFTWARE IS NO LONGER MAINTAINED.
+
+dtmconv Copyright (c) 2005 John Goerzen
+----------------------------------------------------------------------
+
 DTM to Opie Converter
 
 This tool is used to convert from Sharp's proprietary Zaurus PIM
